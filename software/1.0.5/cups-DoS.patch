@@ -1,0 +1,667 @@
+CUPS 1.0.5 Denial of Service Patch Set #1 - 06/16/2000
+------------------------------------------------------
+
+This patch file fixes potential Denial-of-Service bugs in CUPS 1.0.5.
+These fixes are also part of CUPS 1.1b3 and beyond.
+
+Specific DoS fixes:
+
+    - Malformed IPP requests could crash cupsd.
+    - Standard CGI form POSTs could crash cupsd.
+    - The cupsd program did not always delete request files when
+      needed.
+    - Authenticating with a non-existent user or a user with
+      no shadow password could crash cupsd.
+
+This patch set also includes:
+
+    - cupsSystem() didn't close the cupsd.conf file.
+    - The texttops filter made underlines that were too
+      thick.
+    - The lpstat command didn't show a device for remote
+      printers, and would stop the listing prematurely.
+    - The lpstat command didn't show printers after the
+      first printer with an active job.
+    - Remote raw IPP printing didn't pass the raw option
+      properly.
+
+Please report any problems with this patch to "cups-support@cups.org".
+
+
+Index: backend/ipp.c
+===================================================================
+RCS file: /development/cvs/cups/backend/ipp.c,v
+retrieving revision 1.16.2.2
+retrieving revision 1.16.2.3
+diff -c -r1.16.2.2 -r1.16.2.3
+*** backend/ipp.c	2000/01/28 17:25:49	1.16.2.2
+--- backend/ipp.c	2000/02/24 21:40:58	1.16.2.3
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: ipp.c,v 1.16.2.2 2000/01/28 17:25:49 mike Exp $"
+   *
+   *   IPP backend for the Common UNIX Printing System (CUPS).
+   *
+--- 1,5 ----
+  /*
+!  * "$Id: ipp.c,v 1.16.2.3 2000/02/24 21:40:58 mike Exp $"
+   *
+   *   IPP backend for the Common UNIX Printing System (CUPS).
+   *
+***************
+*** 81,86 ****
+--- 81,87 ----
+  		tbytes;		/* Total bytes written */
+    char		buffer[8192];	/* Output buffer */
+    int		copies;		/* Number of copies remaining */
++   const char	*content_type;	/* CONTENT_TYPE environment variable */
+  
+  
+    if (argc < 6 || argc > 7)
+***************
+*** 382,388 ****
+      options     = NULL;
+      num_options = cupsParseOptions(argv[5], 0, &options);
+  
+!     if (cupsGetOption("raw", num_options, options))
+        ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format",
+          	   NULL, "application/vnd.cups-raw");
+      else
+--- 383,391 ----
+      options     = NULL;
+      num_options = cupsParseOptions(argv[5], 0, &options);
+  
+!     if (cupsGetOption("raw", num_options, options) ||
+!         ((content_type = getenv("CONTENT_TYPE")) != NULL &&
+!          strcasecmp(content_type, "application/vnd.cups-raw") == 0))
+        ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_MIMETYPE, "document-format",
+          	   NULL, "application/vnd.cups-raw");
+      else
+***************
+*** 651,655 ****
+  
+  
+  /*
+!  * End of "$Id: ipp.c,v 1.16.2.2 2000/01/28 17:25:49 mike Exp $".
+   */
+--- 654,658 ----
+  
+  
+  /*
+!  * End of "$Id: ipp.c,v 1.16.2.3 2000/02/24 21:40:58 mike Exp $".
+   */
+Index: cups/usersys.c
+===================================================================
+RCS file: /development/cvs/cups/cups/usersys.c,v
+retrieving revision 1.2.2.1
+retrieving revision 1.2.2.2
+diff -c -r1.2.2.1 -r1.2.2.2
+*** cups/usersys.c	2000/01/19 22:17:15	1.2.2.1
+--- cups/usersys.c	2000/03/10 16:58:34	1.2.2.2
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: usersys.c,v 1.2.2.1 2000/01/19 22:17:15 mike Exp $"
+   *
+   *   User, system, and password routines for the Common UNIX Printing
+   *   System (CUPS).
+--- 1,5 ----
+  /*
+!  * "$Id: usersys.c,v 1.2.2.2 2000/03/10 16:58:34 mike Exp $"
+   *
+   *   User, system, and password routines for the Common UNIX Printing
+   *   System (CUPS).
+***************
+*** 157,163 ****
+--- 157,166 ----
+        for (server = line + 11; isspace(*server); server ++);
+  
+        if (*server)
++       {
++         fclose(fp);
+          return (server);
++       }
+      }
+  
+   /*
+***************
+*** 171,175 ****
+  
+  
+  /*
+!  * End of "$Id: usersys.c,v 1.2.2.1 2000/01/19 22:17:15 mike Exp $".
+   */
+--- 174,178 ----
+  
+  
+  /*
+!  * End of "$Id: usersys.c,v 1.2.2.2 2000/03/10 16:58:34 mike Exp $".
+   */
+Index: filter/texttops.c
+===================================================================
+RCS file: /development/cvs/cups/filter/texttops.c,v
+retrieving revision 1.18.2.2
+retrieving revision 1.18.2.3
+diff -c -r1.18.2.2 -r1.18.2.3
+*** filter/texttops.c	2000/01/24 18:58:04	1.18.2.2
+--- filter/texttops.c	2000/02/25 19:23:28	1.18.2.3
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: texttops.c,v 1.18.2.2 2000/01/24 18:58:04 mike Exp $"
+   *
+   *   Text to PostScript filter for the Common UNIX Printing System (CUPS).
+   *
+--- 1,5 ----
+  /*
+!  * "$Id: texttops.c,v 1.18.2.3 2000/02/25 19:23:28 mike Exp $"
+   *
+   *   Text to PostScript filter for the Common UNIX Printing System (CUPS).
+   *
+***************
+*** 292,298 ****
+  
+    puts("/N { FN setfont moveto } bind def");
+    puts("/B { FB setfont moveto } bind def");
+!   puts("/U { gsave 0 rlineto stroke grestore } bind def");
+  
+    if (PrettyPrint)
+    {
+--- 292,299 ----
+  
+    puts("/N { FN setfont moveto } bind def");
+    puts("/B { FB setfont moveto } bind def");
+!   printf("/U { gsave 0.5 setlinewidth 0 %.2f rmoveto "
+!          "0 rlineto stroke grestore } bind def\n", -6.8 / LinesPerInch);
+  
+    if (PrettyPrint)
+    {
+***************
+*** 573,577 ****
+  
+  
+  /*
+!  * End of "$Id: texttops.c,v 1.18.2.2 2000/01/24 18:58:04 mike Exp $".
+   */
+--- 574,578 ----
+  
+  
+  /*
+!  * End of "$Id: texttops.c,v 1.18.2.3 2000/02/25 19:23:28 mike Exp $".
+   */
+Index: scheduler/auth.c
+===================================================================
+RCS file: /development/cvs/cups/scheduler/auth.c,v
+retrieving revision 1.20.2.1
+retrieving revision 1.20.2.2
+diff -c -r1.20.2.1 -r1.20.2.2
+*** scheduler/auth.c	2000/01/19 22:17:43	1.20.2.1
+--- scheduler/auth.c	2000/02/24 02:36:19	1.20.2.2
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: auth.c,v 1.20.2.1 2000/01/19 22:17:43 mike Exp $"
+   *
+   *   Authorization routines for the Common UNIX Printing System (CUPS).
+   *
+--- 1,5 ----
+  /*
+!  * "$Id: auth.c,v 1.20.2.2 2000/02/24 02:36:19 mike Exp $"
+   *
+   *   Authorization routines for the Common UNIX Printing System (CUPS).
+   *
+***************
+*** 494,500 ****
+    {
+      LogMessage(LOG_WARN, "IsAuthorized: group name \"%s\" does not exist!",
+                 best->group_name);
+!     return (HTTP_UNAUTHORIZED);
+    }
+  
+    for (i = 0; grp->gr_mem[i] != NULL; i ++)
+--- 494,500 ----
+    {
+      LogMessage(LOG_WARN, "IsAuthorized: group name \"%s\" does not exist!",
+                 best->group_name);
+!     return (HTTP_FORBIDDEN);
+    }
+  
+    for (i = 0; grp->gr_mem[i] != NULL; i ++)
+***************
+*** 514,520 ****
+  
+    DEBUG_puts("IsAuthorized: user not in group!");
+  
+!   return (HTTP_UNAUTHORIZED);
+  }
+  
+  
+--- 514,520 ----
+  
+    DEBUG_puts("IsAuthorized: user not in group!");
+  
+!   return (HTTP_FORBIDDEN);
+  }
+  
+  
+***************
+*** 719,723 ****
+  
+  
+  /*
+!  * End of "$Id: auth.c,v 1.20.2.1 2000/01/19 22:17:43 mike Exp $".
+   */
+--- 719,723 ----
+  
+  
+  /*
+!  * End of "$Id: auth.c,v 1.20.2.2 2000/02/24 02:36:19 mike Exp $".
+   */
+Index: scheduler/client.c
+===================================================================
+RCS file: /development/cvs/cups/scheduler/client.c,v
+retrieving revision 1.40.2.5
+diff -c -r1.40.2.5 client.c
+*** scheduler/client.c	2000/02/22 20:08:19	1.40.2.5
+--- scheduler/client.c	2000/06/16 19:39:18
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: client.c,v 1.40.2.5 2000/02/22 20:08:19 mike Exp $"
+   *
+   *   Client routines for the Common UNIX Printing System (CUPS) scheduler.
+   *
+--- 1,5 ----
+  /*
+!  * "$Id: client.c,v 1.40.2.6 2000/03/09 15:35:28 mike Exp $"
+   *
+   *   Client routines for the Common UNIX Printing System (CUPS) scheduler.
+   *
+***************
+*** 104,112 ****
+  
+    if (HostNameLookups)
+  #ifndef __sgi
+!     host = gethostbyaddr((char *)&address, sizeof(address), AF_INET);
+  #else
+!     host = gethostbyaddr(&address, sizeof(address), AF_INET);
+  #endif /* !__sgi */
+    else
+      host = NULL;
+--- 104,114 ----
+  
+    if (HostNameLookups)
+  #ifndef __sgi
+!     host = gethostbyaddr((char *)&(con->http.hostaddr.sin_addr),
+!                          sizeof(struct in_addr), AF_INET);
+  #else
+!     host = gethostbyaddr(&(con->http.hostaddr.sin_addr),
+!                          sizeof(struct in_addr), AF_INET);
+  #endif /* !__sgi */
+    else
+      host = NULL;
+***************
+*** 575,622 ****
+  
+  	  if (strcmp(con->http.fields[HTTP_FIELD_CONTENT_TYPE], "application/ipp") == 0)
+              con->request = ippNew();
+- 	  else if (strcmp(con->http.fields[HTTP_FIELD_CONTENT_TYPE], "application/x-www-form-urlencoded") == 0 &&
+- 	           (strncmp(con->uri, "/printers", 9) == 0 ||
+- 	            strncmp(con->uri, "/classes", 8) == 0 ||
+- 	            strncmp(con->uri, "/jobs", 5) == 0))
+- 	  {
+- 	   /*
+- 	    * CGI request...
+- 	    */
+- 
+-             if (strncmp(con->uri, "/printers", 9) == 0)
+- 	    {
+- 	      snprintf(command, sizeof(command), "%s/cgi-bin/printers", ServerRoot);
+- 	      options = con->uri + 9;
+- 	    }
+- 	    else if (strncmp(con->uri, "/classes", 8) == 0)
+- 	    {
+- 	      snprintf(command, sizeof(command), "%s/cgi-bin/classes", ServerRoot);
+- 	      options = con->uri + 8;
+- 	    }
+- 	    else
+- 	    {
+- 	      snprintf(command, sizeof(command), "%s/cgi-bin/jobs", ServerRoot);
+- 	      options = con->uri + 5;
+- 	    }
+- 
+- 	    if (*options == '/')
+- 	      options ++;
+- 
+-             if (!SendCommand(con, command, options))
+- 	    {
+- 	      if (!SendError(con, HTTP_NOT_FOUND))
+- 	      {
+- 	        CloseClient(con);
+- 		return (0);
+- 	      }
+-             }
+- 	    else
+-               LogRequest(con, HTTP_OK);
+- 
+- 	    if (con->http.version <= HTTP_1_0)
+- 	      con->http.keep_alive = HTTP_KEEPALIVE_OFF;
+- 	  }
+  	  else if (!SendError(con, HTTP_UNAUTHORIZED))
+  	  {
+  	    CloseClient(con);
+--- 577,582 ----
+***************
+*** 863,870 ****
+--- 823,841 ----
+  	    }
+  	  }
+  
++          /*
++ 	  * Process IPP requests...
++ 	  */
++ 
+            if (con->request)
+              ProcessIPPRequest(con);
++ 
++          /*
++ 	  * Remove temporary files as needed...
++ 	  */
++ 
++           if (con->filename[0])
++             unlink(con->filename);
+  	}
+          break;
+    }
+***************
+*** 1603,1607 ****
+  
+  
+  /*
+!  * End of "$Id: client.c,v 1.40.2.5 2000/02/22 20:08:19 mike Exp $".
+   */
+--- 1574,1578 ----
+  
+  
+  /*
+!  * End of "$Id: client.c,v 1.40.2.6 2000/03/09 15:35:28 mike Exp $".
+   */
+Index: scheduler/ipp.c
+===================================================================
+RCS file: /development/cvs/cups/scheduler/ipp.c,v
+retrieving revision 1.37.2.4
+diff -c -r1.37.2.4 ipp.c
+*** scheduler/ipp.c	2000/02/22 20:08:20	1.37.2.4
+--- scheduler/ipp.c	2000/06/16 19:39:18
+***************
+*** 120,127 ****
+--- 120,135 ----
+      * Return an error, since we only support IPP 1.x.
+      */
+  
++     LogMessage(LOG_ERROR, "ProcessIPPRequest: bad request version (%d.%d)!",
++                con->request->request.any.version[0],
++ 	       con->request->request.any.version[1]);
+      send_ipp_error(con, IPP_VERSION_NOT_SUPPORTED);
+    }  
++   else if (con->request->attrs == NULL)
++   {
++     LogMessage(LOG_ERROR, "ProcessIPPRequest: no attributes in request!");
++     send_ipp_error(con, IPP_BAD_REQUEST);
++   }
+    else
+    {
+     /*
+***************
+*** 138,144 ****
+  	* Out of order; return an error...
+  	*/
+  
+! 	DEBUG_puts("ProcessIPPRequest: attribute groups are out of order!");
+  	send_ipp_error(con, IPP_BAD_REQUEST);
+  	break;
+        }
+--- 146,152 ----
+  	* Out of order; return an error...
+  	*/
+  
+! 	LogMessage(LOG_ERROR, "ProcessIPPRequest: attribute groups are out of order!");
+  	send_ipp_error(con, IPP_BAD_REQUEST);
+  	break;
+        }
+***************
+*** 152,158 ****
+        *
+        *     attributes-charset
+        *     attributes-natural-language
+!       *     printer-uri
+        */
+  
+        attr = con->request->attrs;
+--- 160,166 ----
+        *
+        *     attributes-charset
+        *     attributes-natural-language
+!       *     printer-uri/job-uri
+        */
+  
+        attr = con->request->attrs;
+***************
+*** 200,208 ****
+  	* attributes-natural-language, and printer-uri/job-uri are required
+  	* for all operations.
+  	*/
+  
+! 	DEBUG_printf(("ProcessIPPRequest: missing attributes (%08x, %08x, %08x)!\n",
+!                       charset, language, uri));
+  	send_ipp_error(con, IPP_BAD_REQUEST);
+        }
+        else
+--- 208,223 ----
+  	* attributes-natural-language, and printer-uri/job-uri are required
+  	* for all operations.
+  	*/
++ 
++         if (charset == NULL)
++ 	  LogMessage(LOG_ERROR, "ProcessIPPRequest: missing attributes-charset attribute!");
++ 
++         if (language == NULL)
++ 	  LogMessage(LOG_ERROR, "ProcessIPPRequest: missing attributes-natural-language attribute!");
+  
+!         if (uri == NULL)
+! 	  LogMessage(LOG_ERROR, "ProcessIPPRequest: missing printer-uri or job-uri attribute!");
+! 
+  	send_ipp_error(con, IPP_BAD_REQUEST);
+        }
+        else
+***************
+*** 364,371 ****
+   /*
+    * Accept jobs sent to the printer...
+    */
+  
+-   printer = FindPrinter(name);
+    printer->accepting        = 1;
+    printer->state_message[0] = '\0';
+  
+--- 379,390 ----
+   /*
+    * Accept jobs sent to the printer...
+    */
++ 
++   if (dtype == CUPS_PRINTER_CLASS)
++     printer = FindClass(name);
++   else
++     printer = FindPrinter(name);
+  
+    printer->accepting        = 1;
+    printer->state_message[0] = '\0';
+  
+Index: scheduler/printers.c
+===================================================================
+RCS file: /development/cvs/cups/scheduler/printers.c,v
+retrieving revision 1.46.2.1
+retrieving revision 1.46.2.2
+diff -c -r1.46.2.1 -r1.46.2.2
+*** scheduler/printers.c	2000/01/19 22:17:48	1.46.2.1
+--- scheduler/printers.c	2000/02/24 01:42:32	1.46.2.2
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: printers.c,v 1.46.2.1 2000/01/19 22:17:48 mike Exp $"
+   *
+   *   Printer routines for the Common UNIX Printing System (CUPS).
+   *
+--- 1,5 ----
+  /*
+!  * "$Id: printers.c,v 1.46.2.2 2000/02/24 01:42:32 mike Exp $"
+   *
+   *   Printer routines for the Common UNIX Printing System (CUPS).
+   *
+***************
+*** 269,275 ****
+  
+   /*
+    * Write a new /etc/printcap file, and delete the dummy interface and GUI
+!   * scripts to fool SGI's stupid printing tools.
+    */
+  
+    write_printcap();
+--- 269,275 ----
+  
+   /*
+    * Write a new /etc/printcap file, and delete the dummy interface and GUI
+!   * scripts to fool SGI's and Sun's stupid printing tools.
+    */
+  
+    write_printcap();
+***************
+*** 1233,1237 ****
+  
+  
+  /*
+!  * End of "$Id: printers.c,v 1.46.2.1 2000/01/19 22:17:48 mike Exp $".
+   */
+--- 1233,1237 ----
+  
+  
+  /*
+!  * End of "$Id: printers.c,v 1.46.2.2 2000/02/24 01:42:32 mike Exp $".
+   */
+Index: systemv/lpstat.c
+===================================================================
+RCS file: /development/cvs/cups/systemv/lpstat.c,v
+retrieving revision 1.15.2.2
+retrieving revision 1.15.2.4
+diff -c -r1.15.2.2 -r1.15.2.4
+*** systemv/lpstat.c	2000/01/21 19:22:48	1.15.2.2
+--- systemv/lpstat.c	2000/02/25 16:36:49	1.15.2.4
+***************
+*** 1,5 ****
+  /*
+!  * "$Id: lpstat.c,v 1.15.2.2 2000/01/21 19:22:48 mike Exp $"
+   *
+   *   "lpstat" command for the Common UNIX Printing System (CUPS).
+   *
+--- 1,5 ----
+  /*
+!  * "$Id: lpstat.c,v 1.15.2.4 2000/02/25 16:36:49 mike Exp $"
+   *
+   *   "lpstat" command for the Common UNIX Printing System (CUPS).
+   *
+***************
+*** 580,586 ****
+  
+    if ((response = cupsDoRequest(http, request, "/")) != NULL)
+    {
+!     DEBUG_puts("show_devices: request succeeded...");
+  
+      if (response->request.status.status_code > IPP_OK_CONFLICT)
+      {
+--- 580,586 ----
+  
+    if ((response = cupsDoRequest(http, request, "/")) != NULL)
+    {
+!     DEBUG_puts("show_classes: request succeeded...");
+  
+      if (response->request.status.status_code > IPP_OK_CONFLICT)
+      {
+***************
+*** 881,887 ****
+        * See if we have everything needed...
+        */
+  
+!       if (printer == NULL || device == NULL)
+        {
+          if (attr == NULL)
+  	  break;
+--- 881,887 ----
+        * See if we have everything needed...
+        */
+  
+!       if (printer == NULL)
+        {
+          if (attr == NULL)
+  	  break;
+***************
+*** 943,949 ****
+  
+        if (match)
+        {
+!         if (strncmp(device, "file:", 5) == 0)
+            printf("device for %s: %s\n", printer, device + 5);
+          else
+            printf("device for %s: %s\n", printer, device);
+--- 943,951 ----
+  
+        if (match)
+        {
+!         if (device == NULL)
+!           printf("device for %s: /dev/null\n", printer);
+!         else if (strncmp(device, "file:", 5) == 0)
+            printf("device for %s: %s\n", printer, device + 5);
+          else
+            printf("device for %s: %s\n", printer, device);
+***************
+*** 1208,1213 ****
+--- 1210,1216 ----
+  		*response,	/* IPP Response */
+  		*jobs;		/* IPP Get Jobs response */
+    ipp_attribute_t *attr;	/* Current attribute */
++   ipp_attribute_t *jobattr;	/* Job-id attribute */
+    cups_lang_t	*language;	/* Default language */
+    const char	*printer,	/* Printer name */
+  		*message;	/* Printer state message */
+***************
+*** 1412,1419 ****
+  
+            if ((jobs = cupsDoRequest(http, request, "/jobs/")) != NULL)
+  	  {
+! 	    if ((attr = ippFindAttribute(jobs, "job-id", IPP_TAG_INTEGER)) != NULL)
+!               jobid = attr->values[0].integer;
+  
+              ippDelete(jobs);
+  	  }
+--- 1415,1422 ----
+  
+            if ((jobs = cupsDoRequest(http, request, "/jobs/")) != NULL)
+  	  {
+! 	    if ((jobattr = ippFindAttribute(jobs, "job-id", IPP_TAG_INTEGER)) != NULL)
+!               jobid = jobattr->values[0].integer;
+  
+              ippDelete(jobs);
+  	  }
+***************
+*** 1462,1466 ****
+  
+  
+  /*
+!  * End of "$Id: lpstat.c,v 1.15.2.2 2000/01/21 19:22:48 mike Exp $".
+   */
+--- 1465,1469 ----
+  
+  
+  /*
+!  * End of "$Id: lpstat.c,v 1.15.2.4 2000/02/25 16:36:49 mike Exp $".
+   */

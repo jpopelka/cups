@@ -1,0 +1,72 @@
+README - 10/07/2002 - CUPS Windows Driver Source Patch
+------------------------------------------------------
+
+INTRODUCTION
+
+    The file:
+
+	cups-windows-psprint.patch.gz
+
+    contains a unified diff patch against the Microsoft Windows
+    NT 4.0 DDK "PSPRINT" (PostScript) driver which allows a
+    Windows client to submit a print job to a CUPS server with
+    full page accounting and most IPP job options such as
+    job-billing, job-priority, job-sheets, and page-label.
+
+    This modified driver is normally used when exporting
+    printers via SAMBA.  Easy Software Products also provides a
+    Windows GUI client which supports client printing via LPD
+    and IPP, as supported by the underlying OS.
+
+    [Editors Note: The ESP Print Pro Windows client will not be
+    publicly available until December 2002]
+
+
+COMPILING THE DRIVER
+
+    You'll need to get the Microsoft Windows NT 4.0 DDK, which
+    is available freely from the MSDN site, the Microsoft Visual
+    C++ compiler (not free), and the Cygwin tools (or just the
+    GNU patch and gunzip utilities) to apply the patch.
+
+    After installing the DDK, copy the patch file to the
+    \DDK\SRC\PRINT\PSPRINT directory and run the "Free Build
+    Environment" program included with the DDK.  Then type the
+    following commands:
+
+        cd src\print\psprint
+        gunzip cups-windows-psprint.patch.gz
+	patch -p0 <cups-windows-psprint.patch
+	md bin
+	md bin\free
+	md bin\free\i386
+	build
+
+    The two DLL files needed will be created in the
+    bin\free\i386 directory.
+
+    
+CAVEATS
+
+    THIS DRIVER ONLY WORKS FOR WINDOWS NT 4.0, WINDOWS 2000, AND
+    WINDOWS XP.  No support is provided, at present, for Windows
+    95, 98, or Me clients.
+
+
+LEGAL STUFF
+
+    This patch is Copyright 2002 by Easy Software Products. 
+    Permission is granted to copy, modify, redistribute, and use
+    this patch so long as this README file and all copyright
+    notices are included with the patch.
+
+    The original Microsoft Windows NT 4.0 DDK code is Copyright
+    Microsoft Corporation.  Please see the DDK license agreement
+    for more information.
+
+
+WARRANTY
+
+    THIS PATCH AND DRIVER COME WITH ABSOLUTELY NO WARRANTY OR
+    SUPPORT OF ANY KIND.
+
